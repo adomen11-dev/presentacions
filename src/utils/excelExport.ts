@@ -1,6 +1,16 @@
 import * as XLSX from "xlsx";
 import { ModulePresentation } from "../types";
 
+const formatDateForDisplay = (dateStr: string): string => {
+  if (!dateStr) return "";
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    const [_, year, month, day] = match;
+    return `${day}/${month}/${year}`;
+  }
+  return dateStr;
+};
+
 export function exportToExcel(module: ModulePresentation) {
   // Create workbook
   const wb = XLSX.utils.book_new();
@@ -37,8 +47,8 @@ export function exportToExcel(module: ModulePresentation) {
       ra.codi || "",
       ra.text || "",
       ra.ponderacio !== undefined ? `${ra.ponderacio}` : "",
-      ra.dataInici || "",
-      ra.dataFinal || ""
+      formatDateForDisplay(ra.dataInici || ""),
+      formatDateForDisplay(ra.dataFinal || "")
     ])
   ];
   const wsRAs = XLSX.utils.aoa_to_sheet(raRows);

@@ -26,6 +26,16 @@ interface ModulePreviewProps {
   onSelect?: (id: string) => void;
 }
 
+const formatDateForDisplay = (dateStr: string): string => {
+  if (!dateStr) return "-";
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    const [_, year, month, day] = match;
+    return `${day}/${month}/${year}`;
+  }
+  return dateStr;
+};
+
 type TabKey = 
   | "dades" 
   | "objectius" 
@@ -282,10 +292,10 @@ export default function ModulePreview({
                             {ra.ponderacio}%
                           </td>
                           <td className="py-3.5 px-4 text-center text-slate-600 font-mono border-l border-slate-100">
-                            {ra.dataInici || "-"}
+                            {formatDateForDisplay(ra.dataInici)}
                           </td>
                           <td className="py-3.5 px-4 text-center text-slate-600 font-mono border-l border-slate-100">
-                            {ra.dataFinal || "-"}
+                            {formatDateForDisplay(ra.dataFinal)}
                           </td>
                         </tr>
                       ))}

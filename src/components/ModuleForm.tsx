@@ -47,6 +47,33 @@ interface ModuleFormProps {
   onDelete: (id: string) => void;
 }
 
+const ensureIsoDate = (dateStr: string, defaultDate: string): string => {
+  if (!dateStr) return defaultDate;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return dateStr;
+  }
+  // Try to parse DD/MM or DD-MM format
+  const match = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})$/) || dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (match) {
+    const day = match[1].padStart(2, '0');
+    const month = match[2].padStart(2, '0');
+    let year = "2026";
+    if (match[3]) {
+      year = match[3].length === 2 ? "20" + match[3] : match[3];
+    } else {
+      const mNum = parseInt(month, 10);
+      if (mNum >= 1 && mNum <= 5) {
+        year = "2027";
+      }
+    }
+    const candidate = `${year}-${month}-${day}`;
+    if (candidate < "2026-09-10") return "2026-09-10";
+    if (candidate > "2027-05-14") return "2027-05-14";
+    return candidate;
+  }
+  return defaultDate;
+};
+
 export default function ModuleForm({ 
   module, 
   onUpdate, 
@@ -939,7 +966,7 @@ export default function ModuleForm({
               >
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-[#0052cc]" />
-                  <span>Aprofitar de la programació anterior</span>
+                  <span>Aprofitar de la presentació anterior</span>
                 </div>
                 {isObjImportOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
               </button>
@@ -1041,21 +1068,23 @@ export default function ModuleForm({
                     <div>
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Data d'Inici *</label>
                       <input
-                        type="text"
-                        value={ra.dataInici}
+                        type="date"
+                        min="2026-09-10"
+                        max="2027-05-14"
+                        value={ensureIsoDate(ra.dataInici, "2026-09-10")}
                         onChange={(e) => updateItemRow("ras", ra.id, "dataInici", e.target.value)}
-                        className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-center text-slate-700"
-                        placeholder="Ex: 15/09"
+                        className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-mono text-center text-slate-700"
                       />
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Data Final *</label>
                       <input
-                        type="text"
-                        value={ra.dataFinal}
+                        type="date"
+                        min="2026-09-10"
+                        max="2027-05-14"
+                        value={ensureIsoDate(ra.dataFinal, "2027-05-14")}
                         onChange={(e) => updateItemRow("ras", ra.id, "dataFinal", e.target.value)}
-                        className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-center text-slate-700"
-                        placeholder="Ex: 10/11"
+                        className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-mono text-center text-slate-700"
                       />
                     </div>
                   </div>
@@ -1093,7 +1122,7 @@ export default function ModuleForm({
               >
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-[#0052cc]" />
-                  <span>Aprofitar de la programació anterior</span>
+                  <span>Aprofitar de la presentació anterior</span>
                 </div>
                 {isRaImportOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
               </button>
@@ -1203,7 +1232,7 @@ export default function ModuleForm({
               >
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-[#0052cc]" />
-                  <span>Aprofitar de la programació anterior</span>
+                  <span>Aprofitar de la presentació anterior</span>
                 </div>
                 {isCompImportOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
               </button>
@@ -1398,7 +1427,7 @@ export default function ModuleForm({
             <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100">
               <div>
                 <h3 className="text-sm font-bold text-slate-800">Metodologia Didàctica (Pestanya 6)</h3>
-                <p className="text-xs text-slate-500">Mapeja l'exposició de línies de text lliure sobre la programació didàctica.</p>
+                <p className="text-xs text-slate-500">Mapeja l'exposició de línies de text lliure sobre la presentació del mòdul.</p>
               </div>
               <button
                 type="button"
@@ -1534,7 +1563,7 @@ export default function ModuleForm({
               >
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-[#0052cc]" />
-                  <span>Aprofitar de la programació anterior</span>
+                  <span>Aprofitar de la presentació anterior</span>
                 </div>
                 {isActImportOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
               </button>

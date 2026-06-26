@@ -567,7 +567,7 @@ export default function App() {
 
   const handleAnalyzeImportText = () => {
     if (!importText.trim()) {
-      showFeedback("error", "Enganxa el text de la programació abans de processar!");
+      showFeedback("error", "Enganxa el text de la presentació abans de processar!");
       return;
     }
 
@@ -1007,7 +1007,7 @@ export default function App() {
                 Planificador de Comerç i Màrqueting
               </h2>
               <p className="text-sm text-slate-500 mt-2">
-                Eina simplificada per a la creació de programacions dels mòduls professionals de la família professional de Comerç i Màrqueting.
+                Eina simplificada per a la creació de presentacions dels mòduls professionals de la família professional de Comerç i Màrqueting.
               </p>
               
               <div className="mt-5 flex flex-col items-center justify-center">
@@ -1023,7 +1023,7 @@ export default function App() {
                       <FileText className="w-5 h-5" />
                     </div>
                     <p className="text-xs font-bold text-slate-700">
-                      Carrega programació antiga (.docx)
+                      Carrega presentació antiga (.docx)
                     </p>
                     <p className="text-[10px] text-slate-400">
                       Arrossega el teu fitxer de Word o fes-hi clic per analitzar-lo localment de cop
@@ -1040,7 +1040,7 @@ export default function App() {
                   <div className="bg-slate-50 border border-slate-200 p-6 rounded-2xl shadow-xs space-y-4">
                     <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
                       <Layers className="w-5 h-5 text-[#0052cc]" />
-                      <h3 className="font-extrabold text-slate-800 text-md">Les teves programacions guardades</h3>
+                      <h3 className="font-extrabold text-slate-800 text-md">Les teves presentacions guardades</h3>
                       <span className="bg-[#0052cc]/10 text-[#0052cc] px-2 py-0.5 rounded-full text-xs font-extrabold">
                         {modules.length}
                       </span>
@@ -1077,7 +1077,7 @@ export default function App() {
                               }}
                               className="text-xs font-extrabold text-[#0052cc] flex items-center gap-1 hover:underline cursor-pointer"
                             >
-                              <span>Obre la programació</span>
+                              <span>Obre la presentació</span>
                               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                             </button>
 
@@ -1217,7 +1217,7 @@ export default function App() {
                                     handleDeleteModule(existing.id);
                                   }}
                                   className="p-1 hover:bg-rose-50 text-rose-500 hover:text-rose-600 rounded-md transition-colors cursor-pointer z-10"
-                                  title="Esborra aquesta programació"
+                                  title="Esborra aquesta presentació"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
@@ -1232,7 +1232,7 @@ export default function App() {
                           </p>
                         </div>
                         <div className="text-[11px] font-extrabold text-[#0052cc] flex items-center gap-1 mt-3">
-                          <span>{existing ? "Continua programant" : "Comença a programar"}</span>
+                          <span>{existing ? "Continua editant" : "Comença a editar"}</span>
                           <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                         </div>
                       </div>
@@ -1282,7 +1282,7 @@ export default function App() {
               <div className="space-y-1">
                 <h3 className="text-lg font-bold text-slate-900">Eliminar Mòdul Professional</h3>
                 <p className="text-sm text-slate-500 leading-relaxed">
-                  Vols eliminar la programació de <strong className="text-slate-800">{moduleToDelete.codiModul} - {moduleToDelete.nomModul}</strong>?
+                  Vols eliminar la presentació de <strong className="text-slate-800">{moduleToDelete.codiModul} - {moduleToDelete.nomModul}</strong>?
                 </p>
               </div>
             </div>
@@ -1317,13 +1317,13 @@ export default function App() {
               <div className="space-y-1">
                 <h3 className="text-lg font-bold text-slate-900">
                   {importStep === 1 
-                    ? "Assistent d'Importació de Programacions (.doc)" 
+                    ? "Assistent d'Importació de Presentacions (.doc)" 
                     : "Zona de Previsualització i Confirmació (Staging Area)"}
                 </h3>
                 <p className="text-xs text-slate-500 leading-relaxed">
                   {importStep === 1 
                     ? "Enganxa el contingut textual del teu document de Word (.doc) antic. L'assistent el processarà de manera 100% local." 
-                    : "S'han detectat dades estructurades amb èxit! Selecciona quins elements desitges bolcar a l'editor de programació."}
+                    : "S'han detectat dades estructurades amb èxit! Selecciona quins elements desitges bolcar a l'editor de la presentació."}
                 </p>
               </div>
             </div>
@@ -1332,7 +1332,7 @@ export default function App() {
             {importStep === 1 ? (
               <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Contingut de la programació antiga *</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Contingut de la presentació antiga *</label>
                   <textarea
                     value={importText}
                     onChange={(e) => setImportText(e.target.value)}
@@ -1381,7 +1381,7 @@ RA1*0,15 + RA2*0,25 + ...`}
                           onChange={() => setImportMode("create")}
                           className="text-[#0052cc] focus:ring-[#0052cc] w-4 h-4"
                         />
-                        <span>Crea una nova programació</span>
+                        <span>Crea una nova presentació</span>
                       </label>
                     </div>
                     <p className="text-[10px] text-slate-400 font-medium">
@@ -1398,7 +1398,7 @@ RA1*0,15 + RA2*0,25 + ...`}
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex items-start gap-2.5 text-xs text-amber-800">
                   <Info className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
                   <div>
-                    <span className="font-bold">Revisió estructurada:</span> Activa o desactiva cadascun dels camps o llistes mitjançant els botons de selecció. Les dades s'integraran de forma instantània a la teva programació en confirmar.
+                    <span className="font-bold">Revisió estructurada:</span> Activa o desactiva cadascun dels camps o llistes mitjançant els botons de selecció. Les dades s'integraran de forma instantània a la teva presentació en confirmar.
                   </div>
                 </div>
 
