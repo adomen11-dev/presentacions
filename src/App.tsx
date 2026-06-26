@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import * as mammoth from "mammoth";
 import { ModulePresentation } from "./types";
 import { MODULE_TEMPLATES, CICLES_TEMPLATES } from "./data/defaults";
 import { getOfficialCurriculumData } from "./data/curriculumData";
@@ -815,6 +816,67 @@ export default function App() {
 
   const activeModule = modules.find((m) => m.id === selectedId) || null;
 
+  const handleDocxUpload = (e: React.ChangeEvent<HTMLInputElement>, isOverwrite: boolean = false) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const arrayBuffer = event.target?.result as ArrayBuffer;
+      try {
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        const text = result.value;
+        
+        if (!text || !text.trim()) {
+          showFeedback("error", "No s'ha pogut extreure text d'aquest fitxer .docx o està buit.");
+          return;
+        }
+
+        const parsed = parseSyllabusDocument(text);
+        
+        if (isOverwrite && activeModule) {
+          // Merge / overwrite fields on the active module
+          const updatedMod = {
+            ...activeModule,
+            ...parsed,
+            // Ensure lists are properly assigned
+            objectius: parsed.objectius && parsed.objectius.length > 0 ? parsed.objectius : activeModule.objectius,
+            ras: parsed.ras && parsed.ras.length > 0 ? parsed.ras : activeModule.ras,
+            competencies: parsed.competencies && parsed.competencies.length > 0 ? parsed.competencies : activeModule.competencies,
+            avaluacioPrimera: parsed.avaluacioPrimera || activeModule.avaluacioPrimera,
+            avaluacioSegona: parsed.avaluacioSegona || activeModule.avaluacioSegona,
+            metodologia: parsed.metodologia && parsed.metodologia.length > 0 ? parsed.metodologia : activeModule.metodologia,
+            activitats: parsed.activitats && parsed.activitats.length > 0 ? parsed.activitats : activeModule.activitats,
+            sortides: parsed.sortides && parsed.sortides.length > 0 ? parsed.sortides : activeModule.sortides,
+            espaisrecursos: parsed.espaisrecursos && parsed.espaisrecursos.length > 0 ? parsed.espaisrecursos : activeModule.espaisrecursos,
+            bibliografia: parsed.bibliografia && parsed.bibliografia.length > 0 ? parsed.bibliografia : activeModule.bibliografia
+          };
+          
+          handleUpdateModule(updatedMod);
+          showFeedback("success", `S'ha actualitzat el mòdul ${activeModule.codiModul} amb les dades de l'arxiu .docx!`);
+        } else {
+          // Create a new module
+          const newMod = ensureModuleFields({
+            id: "module-docx-" + Date.now(),
+            ...parsed,
+            cursAcademic: "2026-2027",
+            grup: "A"
+          });
+          
+          const updatedList = [newMod, ...modules];
+          saveModules(updatedList);
+          setSelectedId(newMod.id);
+          showFeedback("success", `S'ha importat el nou mòdul ${newMod.codiModul || ""} correctament des del fitxer .docx!`);
+        }
+      } catch (err) {
+        console.error("Error parsing .docx:", err);
+        showFeedback("error", "Error llegint o processant el fitxer .docx.");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = "";
+  };
+
   return (
     <div className="min-h-screen bg-[#f4f7fc] text-slate-800 font-sans flex flex-col antialiased selection:bg-[#0052cc]/15 selection:text-[#0052cc]">
       
@@ -836,7 +898,7 @@ export default function App() {
             </div>
             <div>
               <h1 className="text-md sm:text-lg font-black text-slate-900 tracking-tight flex items-center gap-1.5 leading-none uppercase">
-                Generador de Presentacions i CSV
+                Planificador de Mòduls FP
               </h1>
               <span className="text-[11px] text-[#0052cc] font-extrabold uppercase tracking-widest mt-1 block">
                 Comerç i Màrqueting - ViB
@@ -891,18 +953,19 @@ export default function App() {
                 <span>Exporta Excel</span>
               </button>
 
-              <button
-                onClick={() => {
-                  setImportMode("overwrite");
-                  setImportText("");
-                  setIsImportModalOpen(true);
-                }}
+              <label
                 className="py-1.5 px-3 bg-blue-50 hover:bg-blue-100 text-[#0052cc] border border-blue-200/30 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"
-                title="Importa text d'una programació antiga (.doc)"
+                title="Importa o sobreescriu el mòdul actual des d'un fitxer de Word (.docx)"
               >
                 <FileText className="w-3.5 h-3.5" />
-                <span>Importa .doc</span>
-              </button>
+                <span>Importa .docx</span>
+                <input
+                  type="file"
+                  accept=".docx"
+                  onChange={(e) => handleDocxUpload(e, true)}
+                  className="hidden"
+                />
+              </label>
 
               <button
                 onClick={() => handleDeleteModule(activeModule.id)}
@@ -947,18 +1010,26 @@ export default function App() {
                 Eina simplificada per a la creació de programacions dels mòduls professionals de la família professional de Comerç i Màrqueting.
               </p>
               
-              <div className="mt-5 flex justify-center">
-                <button
-                  onClick={() => {
-                    setImportMode("create");
-                    setImportText("");
-                    setIsImportModalOpen(true);
-                  }}
-                  className="py-2.5 px-5 bg-blue-50 hover:bg-blue-100 text-[#0052cc] hover:text-blue-800 rounded-xl text-xs sm:text-sm font-extrabold flex items-center gap-2 transition-all border border-blue-200/50 shadow-xs cursor-pointer"
-                >
-                  <FileText className="w-4 h-4" />
-                  <span>Importar des de text (.doc)</span>
-                </button>
+              <div className="mt-5 flex flex-col items-center justify-center">
+                <div className="w-full max-w-md border-2 border-dashed border-blue-200 hover:border-[#0052cc] rounded-2xl bg-blue-50/10 p-5 text-center transition-all group relative cursor-pointer">
+                  <input
+                    type="file"
+                    accept=".docx"
+                    onChange={(e) => handleDocxUpload(e, false)}
+                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                  />
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <div className="h-10 w-10 rounded-xl bg-blue-50 text-[#0052cc] flex items-center justify-center group-hover:bg-[#0052cc] group-hover:text-white transition-all">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <p className="text-xs font-bold text-slate-700">
+                      Carrega programació antiga (.docx)
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      Arrossega el teu fitxer de Word o fes-hi clic per analitzar-lo localment de cop
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1234,7 +1305,7 @@ export default function App() {
       )}
 
       {/* Import syllabus from .doc Modal */}
-      {isImportModalOpen && (
+      {false && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in no-print">
           <div className={`bg-white rounded-2xl border border-slate-150 shadow-2xl w-full flex flex-col max-h-[90vh] overflow-hidden transition-all duration-300 ${importStep === 2 ? 'max-w-4xl' : 'max-w-2xl'} p-6`}>
             

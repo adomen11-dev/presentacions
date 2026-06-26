@@ -32,7 +32,9 @@ import {
   Layers, 
   FileText, 
   User, 
-  ListTodo 
+  ListTodo,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 
 interface ModuleFormProps {
@@ -80,6 +82,20 @@ export default function ModuleForm({
   const [sortides, setSortides] = useState<SimpleRow[]>(module.sortides || []);
   const [espaisrecursos, setEspaisrecursos] = useState<SimpleRow[]>(module.espaisrecursos || []);
   const [bibliografia, setBibliografia] = useState<SimpleRow[]>(module.bibliografia || []);
+
+  // Micro-Assistents d'Importació i Cleaners
+  const [isObjImportOpen, setIsObjImportOpen] = useState(false);
+  const [isRaImportOpen, setIsRaImportOpen] = useState(false);
+  const [isCompImportOpen, setIsCompImportOpen] = useState(false);
+  const [isActImportOpen, setIsActImportOpen] = useState(false);
+
+  const [rawObjText, setRawObjText] = useState("");
+  const [rawRaText, setRawRaText] = useState("");
+  const [rawCompText, setRawCompText] = useState("");
+  const [rawActText, setRawActText] = useState("");
+
+  const [activeCleanerField, setActiveCleanerField] = useState<"avaluacioPrimera" | "avaluacioSegona" | "metodologia" | "espais" | "bibliografia" | null>(null);
+  const [cleanerInputText, setCleanerInputText] = useState("");
 
   // Sync state if module changes (e.g., loaded from lists or changed id)
   useEffect(() => {
@@ -429,6 +445,216 @@ export default function ModuleForm({
     }
   };
 
+  const handleExtractCompetenciesOrObjectius = (rawText: string, isObjectiu: boolean) => {
+    const lines = rawText.split("\n");
+    const itemsToAppend: any[] = [];
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) continue;
+      // Patterns like a) Text content or a. Text content
+      const match = line.match(/^([a-z])[\)\.]\s*(.+)/i);
+      if (match) {
+        const codi = match[1].toLowerCase();
+        const text = match[2].trim();
+        itemsToAppend.push({
+          id: (isObjectiu ? "obj-" : "comp-") + Date.now() + "-" + Math.random().toString(36).substring(2, 5),
+          codi,
+          text
+        });
+      }
+    }
+    if (itemsToAppend.length > 0) {
+      if (isObjectiu) {
+        const nextList = [...objectius, ...itemsToAppend];
+        setObjectius(nextList);
+        dispatchUpdate({ objectius: nextList });
+      } else {
+        const nextList = [...competencies, ...itemsToAppend];
+        setCompetencies(nextList);
+        dispatchUpdate({ competencies: nextList });
+      }
+      return true;
+    }
+    return false;
+  };
+
+  const handleExtractRAs = (rawText: string) => {
+    const lines = rawText.split("\n");
+    const rAsToAppend: RA[] = [];
+    let activeRa: RA | null = null;
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) continue;
+
+      const raMatch = line.match(/^RA\s*(\d+)\.?\s*(.+)/i);
+      if (raMatch) {
+        if (activeRa) {
+          rAsToAppend.push(activeRa);
+        }
+        activeRa = {
+          id: "ra-" + Date.now() + "-" + Math.random().toString(36).substring(2, 5),
+          codi: raMatch[1],
+          text: raMatch[2].trim(),
+          ponderacio: 0,
+          dataInici: "15/09",
+          dataFinal: "15/12"
+        };
+        continue;
+      }
+
+      if (activeRa) {
+        const critMatch = line.match(/^(\d+\.\d+)\.?\s*(.+)/) || line.match(/^-\s*(.+)/);
+        if (critMatch) {
+          const prefix = critMatch[1] ? critMatch[1] : "";
+          const body = critMatch[2] ? critMatch[2] : critMatch[1];
+          activeRa.text += `\n- ${prefix} ${body.trim()}`;
+        } else {
+          activeRa.text += " " + line;
+        }
+      }
+    }
+
+    if (activeRa) {
+      rAsToAppend.push(activeRa);
+    }
+
+    if (rAsToAppend.length > 0) {
+      const currentLength = ras.length;
+      const totalNew = rAsToAppend.length;
+      const basePond = Math.floor(100 / (currentLength + totalNew || 1));
+      
+      const nextList = [...ras, ...rAsToAppend];
+      const updatedList = nextList.map((r) => {
+        if (r.ponderacio === 0) {
+          return { ...r, ponderacio: basePond };
+        }
+        return r;
+      });
+
+      setRas(updatedList);
+      dispatchUpdate({ ras: updatedList });
+      return true;
+    }
+    return false;
+  };
+
+  const handleExtractActivities = (rawText: string) => {
+    const lines = rawText.split("\n");
+    const actsToAppend: SimpleRow[] = [];
+    
+    interface TempAct {
+      codi: string;
+      titol: string;
+      hores: string;
+      lines: string[];
+    }
+    const tempActs: TempAct[] = [];
+    let activeTemp: TempAct | null = null;
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) continue;
+
+      const actMatch = line.match(/^A(\d+)[:\.]?\s*(.+)/i);
+      if (actMatch) {
+        if (activeTemp) {
+          tempActs.push(activeTemp);
+        }
+        let hores = "";
+        const horesMatch = line.match(/(\d+)\s*h\b/i) || line.match(/\((\d+)\s*h\)/i);
+        if (horesMatch) {
+          hores = horesMatch[1] + " h.";
+        }
+        activeTemp = {
+          codi: "A" + actMatch[1],
+          titol: actMatch[2].replace(/\(\d+\s*h\.?\)/i, "").trim(),
+          hores: hores,
+          lines: []
+        };
+        continue;
+      }
+
+      if (activeTemp) {
+        activeTemp.lines.push(line);
+      }
+    }
+
+    if (activeTemp) {
+      tempActs.push(activeTemp);
+    }
+
+    for (const ta of tempActs) {
+      let fullText = `${ta.codi}: ${ta.titol}`;
+      if (ta.hores) {
+        fullText += ` (${ta.hores})`;
+      }
+      const descLines = ta.lines.filter(l => !/Descripció\s*general:/i.test(l) && !/Continguts:/i.test(l));
+      if (descLines.length > 0) {
+        fullText += ` - Descripció: ${descLines.join(" ")}`;
+      }
+      actsToAppend.push({
+        id: "act-imported-" + Date.now() + "-" + Math.random().toString(36).substring(2, 5),
+        text: fullText
+      });
+    }
+
+    if (actsToAppend.length > 0) {
+      const nextList = [...activitats, ...actsToAppend];
+      setActivitats(nextList);
+      dispatchUpdate({ activitats: nextList });
+      return true;
+    }
+    return false;
+  };
+
+  const handleCleanTextPaste = (rawText: string, field: "avaluacioPrimera" | "avaluacioSegona" | "metodologia" | "espais" | "bibliografia") => {
+    const cleanLine = (txt: string) => {
+      return txt
+        .replace(/<[^>]*>/g, "")
+        .replace(/&nbsp;/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    };
+
+    if (field === "avaluacioPrimera" || field === "avaluacioSegona") {
+      const cleaned = rawText
+        .split("\n")
+        .map(cleanLine)
+        .filter(Boolean)
+        .join("\n");
+      
+      if (field === "avaluacioPrimera") {
+        setAvaluacioPrimera(cleaned);
+        dispatchUpdate({ avaluacioPrimera: cleaned });
+      } else {
+        setAvaluacioSegona(cleaned);
+        dispatchUpdate({ avaluacioSegona: cleaned });
+      }
+    } else {
+      const lines = rawText
+        .split("\n")
+        .map(cleanLine)
+        .filter(Boolean);
+
+      const newRows = lines.map(line => ({
+        id: `row-${field}-imported-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+        text: line
+      }));
+
+      if (field === "metodologia") {
+        setMetodologia(newRows);
+        dispatchUpdate({ metodologia: newRows });
+      } else if (field === "espais") {
+        setEspaisrecursos(newRows);
+        dispatchUpdate({ espaisrecursos: newRows });
+      } else if (field === "bibliografia") {
+        setBibliografia(newRows);
+        dispatchUpdate({ bibliografia: newRows });
+      }
+    }
+  };
+
   const steps = [
     { num: 1, label: "1. Dades" },
     { num: 2, label: "2. Objectius" },
@@ -703,6 +929,60 @@ export default function ModuleForm({
                 </div>
               ))}
             </div>
+
+            {/* Micro-Assistent d'Importació */}
+            <div className="border border-dashed border-blue-200 rounded-xl bg-blue-50/10 overflow-hidden mt-4">
+              <button
+                type="button"
+                onClick={() => setIsObjImportOpen(!isObjImportOpen)}
+                className="w-full px-4 py-3 flex items-center justify-between text-xs font-bold text-slate-700 hover:bg-blue-50/30 transition-all cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-[#0052cc]" />
+                  <span>Aprofitar de la programació anterior</span>
+                </div>
+                {isObjImportOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+              </button>
+              
+              {isObjImportOpen && (
+                <div className="p-4 border-t border-dashed border-blue-150 space-y-3 bg-white">
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    L'assistent local analitzarà el text per extreure les lletres identificatives i els objectius de forma immediata.
+                  </p>
+                  <textarea
+                    value={rawObjText}
+                    onChange={(e) => setRawObjText(e.target.value)}
+                    placeholder="Enganxa aquí el fragment de text on surten les competències o objectius del curs passat (ex: h) Organitzar l'emmagatzematge...)"
+                    rows={4}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#0052cc]"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setRawObjText("")}
+                      className="px-3 py-1.5 text-[11px] font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
+                    >
+                      Neteja
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const success = handleExtractCompetenciesOrObjectius(rawObjText, true);
+                        if (success) {
+                          setRawObjText("");
+                          setIsObjImportOpen(false);
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-[#0052cc] text-white font-bold rounded-lg text-[11px] hover:bg-blue-700 flex items-center gap-1.5"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Extreure i afegir</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
           </div>
         )}
 
@@ -803,6 +1083,60 @@ export default function ModuleForm({
                 </div>
               ))}
             </div>
+
+            {/* Micro-Assistent d'Importació de RAs */}
+            <div className="border border-dashed border-blue-200 rounded-xl bg-blue-50/10 overflow-hidden mt-4">
+              <button
+                type="button"
+                onClick={() => setIsRaImportOpen(!isRaImportOpen)}
+                className="w-full px-4 py-3 flex items-center justify-between text-xs font-bold text-slate-700 hover:bg-blue-50/30 transition-all cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-[#0052cc]" />
+                  <span>Aprofitar de la programació anterior</span>
+                </div>
+                {isRaImportOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+              </button>
+              
+              {isRaImportOpen && (
+                <div className="p-4 border-t border-dashed border-blue-150 space-y-3 bg-white">
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    L'assistent local analitzarà el text de l'any passat per extreure els Resultats d'Aprenentatge (RAs) detectats, preservant els actuals.
+                  </p>
+                  <textarea
+                    value={rawRaText}
+                    onChange={(e) => setRawRaText(e.target.value)}
+                    placeholder="Enganxa aquí el bloc de RAs de l'any passat (ex: RA1. Relaciona la normativa d'emmagatzematge...)"
+                    rows={4}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#0052cc]"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setRawRaText("")}
+                      className="px-3 py-1.5 text-[11px] font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
+                    >
+                      Neteja
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const success = handleExtractRAs(rawRaText);
+                        if (success) {
+                          setRawRaText("");
+                          setIsRaImportOpen(false);
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-[#0052cc] text-white font-bold rounded-lg text-[11px] hover:bg-blue-700 flex items-center gap-1.5"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Extreure i afegir</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
           </div>
         )}
 
@@ -859,6 +1193,60 @@ export default function ModuleForm({
                 </div>
               ))}
             </div>
+
+            {/* Micro-Assistent d'Importació de Competències */}
+            <div className="border border-dashed border-blue-200 rounded-xl bg-blue-50/10 overflow-hidden mt-4">
+              <button
+                type="button"
+                onClick={() => setIsCompImportOpen(!isCompImportOpen)}
+                className="w-full px-4 py-3 flex items-center justify-between text-xs font-bold text-slate-700 hover:bg-blue-50/30 transition-all cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-[#0052cc]" />
+                  <span>Aprofitar de la programació anterior</span>
+                </div>
+                {isCompImportOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+              </button>
+              
+              {isCompImportOpen && (
+                <div className="p-4 border-t border-dashed border-blue-150 space-y-3 bg-white">
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    L'assistent local analitzarà el text per extreure les lletres identificatives i les competències de forma immediata.
+                  </p>
+                  <textarea
+                    value={rawCompText}
+                    onChange={(e) => setRawCompText(e.target.value)}
+                    placeholder="Enganxa aquí el fragment de text on surten les competències o objectius del curs passat (ex: h) Organitzar l'emmagatzematge...)"
+                    rows={4}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#0052cc]"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setRawCompText("")}
+                      className="px-3 py-1.5 text-[11px] font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
+                    >
+                      Neteja
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const success = handleExtractCompetenciesOrObjectius(rawCompText, false);
+                        if (success) {
+                          setRawCompText("");
+                          setIsCompImportOpen(false);
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-[#0052cc] text-white font-bold rounded-lg text-[11px] hover:bg-blue-700 flex items-center gap-1.5"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Extreure i afegir</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
           </div>
         )}
 
@@ -881,6 +1269,59 @@ export default function ModuleForm({
                   placeholder="Especifica els criteris i percentatges d'avaluació ordinaris per superar el curs de manera continuada..."
                   required
                 />
+                
+                {/* Micro-Assistent de Neteja */}
+                <div className="mt-2">
+                  {activeCleanerField === "avaluacioPrimera" ? (
+                    <div className="p-3 border border-dashed border-slate-300 bg-slate-50 rounded-xl space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase">Filtre i Neteja de Text</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveCleanerField(null);
+                            setCleanerInputText("");
+                          }}
+                          className="text-[10px] text-slate-400 hover:text-slate-600 font-bold"
+                        >
+                          Tancar
+                        </button>
+                      </div>
+                      <textarea
+                        value={cleanerInputText}
+                        onChange={(e) => setCleanerInputText(e.target.value)}
+                        placeholder="Enganxa aquí el text brut de Word (amb HTML, espais, etc.)"
+                        rows={3}
+                        className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#0052cc]"
+                      />
+                      <div className="flex justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleCleanTextPaste(cleanerInputText, "avaluacioPrimera");
+                            setActiveCleanerField(null);
+                            setCleanerInputText("");
+                          }}
+                          className="px-2 py-1 bg-[#0052cc] hover:bg-blue-700 text-white rounded text-[10px] font-bold"
+                        >
+                          Netejar i substituir
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveCleanerField("avaluacioPrimera");
+                        setCleanerInputText("");
+                      }}
+                      className="text-[11px] text-[#0052cc] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Enganxa text net aquí</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -893,6 +1334,59 @@ export default function ModuleForm({
                   placeholder="Especifica el tipus d'exàmens o lliuraments de projectes necessaris per recuperar la matèria en segona convocatòria..."
                   required
                 />
+
+                {/* Micro-Assistent de Neteja */}
+                <div className="mt-2">
+                  {activeCleanerField === "avaluacioSegona" ? (
+                    <div className="p-3 border border-dashed border-slate-300 bg-slate-50 rounded-xl space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase">Filtre i Neteja de Text</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveCleanerField(null);
+                            setCleanerInputText("");
+                          }}
+                          className="text-[10px] text-slate-400 hover:text-slate-600 font-bold"
+                        >
+                          Tancar
+                        </button>
+                      </div>
+                      <textarea
+                        value={cleanerInputText}
+                        onChange={(e) => setCleanerInputText(e.target.value)}
+                        placeholder="Enganxa aquí el text brut de Word (amb HTML, espais, etc.)"
+                        rows={3}
+                        className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#0052cc]"
+                      />
+                      <div className="flex justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleCleanTextPaste(cleanerInputText, "avaluacioSegona");
+                            setActiveCleanerField(null);
+                            setCleanerInputText("");
+                          }}
+                          className="px-2 py-1 bg-[#0052cc] hover:bg-blue-700 text-white rounded text-[10px] font-bold"
+                        >
+                          Netejar i substituir
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveCleanerField("avaluacioSegona");
+                        setCleanerInputText("");
+                      }}
+                      className="text-[11px] text-[#0052cc] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Enganxa text net aquí</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -935,6 +1429,59 @@ export default function ModuleForm({
                   </button>
                 </div>
               ))}
+
+              {/* Micro-Assistent de Neteja de Metodologia */}
+              <div className="mt-2">
+                {activeCleanerField === "metodologia" ? (
+                  <div className="p-3 border border-dashed border-slate-300 bg-slate-50 rounded-xl space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">Filtre i Neteja de Metodologia</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveCleanerField(null);
+                          setCleanerInputText("");
+                        }}
+                        className="text-[10px] text-slate-400 hover:text-slate-600 font-bold"
+                      >
+                        Tancar
+                      </button>
+                    </div>
+                    <textarea
+                      value={cleanerInputText}
+                      onChange={(e) => setCleanerInputText(e.target.value)}
+                      placeholder="Enganxa aquí el text brut de Word (cada línia serà una entrada neta de metodologia)"
+                      rows={3}
+                      className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#0052cc]"
+                    />
+                    <div className="flex justify-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleCleanTextPaste(cleanerInputText, "metodologia");
+                          setActiveCleanerField(null);
+                          setCleanerInputText("");
+                        }}
+                        className="px-2 py-1 bg-[#0052cc] hover:bg-blue-700 text-white rounded text-[10px] font-bold"
+                      >
+                        Netejar i substituir files
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveCleanerField("metodologia");
+                      setCleanerInputText("");
+                    }}
+                    className="text-[11px] text-[#0052cc] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Enganxa text net aquí</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -977,6 +1524,60 @@ export default function ModuleForm({
                 </div>
               ))}
             </div>
+
+            {/* Micro-Assistent d'Importació d'Activitats */}
+            <div className="border border-dashed border-blue-200 rounded-xl bg-blue-50/10 overflow-hidden mt-4">
+              <button
+                type="button"
+                onClick={() => setIsActImportOpen(!isActImportOpen)}
+                className="w-full px-4 py-3 flex items-center justify-between text-xs font-bold text-slate-700 hover:bg-blue-50/30 transition-all cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-[#0052cc]" />
+                  <span>Aprofitar de la programació anterior</span>
+                </div>
+                {isActImportOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+              </button>
+              
+              {isActImportOpen && (
+                <div className="p-4 border-t border-dashed border-blue-150 space-y-3 bg-white">
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    L'assistent local analitzarà el text d'origen per extreure les unitats o activitats formatades com A1, A2 amb les seves respectives hores i descripcions.
+                  </p>
+                  <textarea
+                    value={rawActText}
+                    onChange={(e) => setRawActText(e.target.value)}
+                    placeholder="Enganxa aquí el bloc d'activitats (ex: A1: Atenció al client (12 h.) - Descripció general: Supòsit pràctic d'atenció telefònica...)"
+                    rows={4}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#0052cc]"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setRawActText("")}
+                      className="px-3 py-1.5 text-[11px] font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
+                    >
+                      Neteja
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const success = handleExtractActivities(rawActText);
+                        if (success) {
+                          setRawActText("");
+                          setIsActImportOpen(false);
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-[#0052cc] text-white font-bold rounded-lg text-[11px] hover:bg-blue-700 flex items-center gap-1.5"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Extreure i afegir</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
           </div>
         )}
 
@@ -1058,6 +1659,59 @@ export default function ModuleForm({
                   </button>
                 </div>
               ))}
+
+              {/* Micro-Assistent de Neteja d'Espais */}
+              <div className="mt-2">
+                {activeCleanerField === "espais" ? (
+                  <div className="p-3 border border-dashed border-slate-300 bg-slate-50 rounded-xl space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">Filtre i Neteja de Recursos/Espais</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveCleanerField(null);
+                          setCleanerInputText("");
+                        }}
+                        className="text-[10px] text-slate-400 hover:text-slate-600 font-bold"
+                      >
+                        Tancar
+                      </button>
+                    </div>
+                    <textarea
+                      value={cleanerInputText}
+                      onChange={(e) => setCleanerInputText(e.target.value)}
+                      placeholder="Enganxa aquí el text brut de Word (cada línia serà un recurs)"
+                      rows={3}
+                      className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#0052cc]"
+                    />
+                    <div className="flex justify-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleCleanTextPaste(cleanerInputText, "espais");
+                          setActiveCleanerField(null);
+                          setCleanerInputText("");
+                        }}
+                        className="px-2 py-1 bg-[#0052cc] hover:bg-blue-700 text-white rounded text-[10px] font-bold"
+                      >
+                        Netejar i substituir files
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveCleanerField("espais");
+                      setCleanerInputText("");
+                    }}
+                    className="text-[11px] text-[#0052cc] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Enganxa text net aquí</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -1099,6 +1753,59 @@ export default function ModuleForm({
                   </button>
                 </div>
               ))}
+
+              {/* Micro-Assistent de Neteja de Bibliografia */}
+              <div className="mt-2">
+                {activeCleanerField === "bibliografia" ? (
+                  <div className="p-3 border border-dashed border-slate-300 bg-slate-50 rounded-xl space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">Filtre i Neteja de Bibliografia</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveCleanerField(null);
+                          setCleanerInputText("");
+                        }}
+                        className="text-[10px] text-slate-400 hover:text-slate-600 font-bold"
+                      >
+                        Tancar
+                      </button>
+                    </div>
+                    <textarea
+                      value={cleanerInputText}
+                      onChange={(e) => setCleanerInputText(e.target.value)}
+                      placeholder="Enganxa aquí el text brut de Word (cada línia serà una referència bibliogràfica)"
+                      rows={3}
+                      className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#0052cc]"
+                    />
+                    <div className="flex justify-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleCleanTextPaste(cleanerInputText, "bibliografia");
+                          setActiveCleanerField(null);
+                          setCleanerInputText("");
+                        }}
+                        className="px-2 py-1 bg-[#0052cc] hover:bg-blue-700 text-white rounded text-[10px] font-bold"
+                      >
+                        Netejar i substituir files
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveCleanerField("bibliografia");
+                      setCleanerInputText("");
+                    }}
+                    className="text-[11px] text-[#0052cc] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Enganxa text net aquí</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}
