@@ -1,0 +1,6 @@
+{
+  "name": "Generador de Presentacions i CSV de Mòduls",
+  "description": "Eina de creació i exportació de presentacions de mòduls formatius a CSV, amb l'estil visual de Comerç i Màrqueting.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
