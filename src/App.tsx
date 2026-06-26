@@ -223,6 +223,7 @@ function parseSyllabusDocument(text: string): Partial<ModulePresentation> {
   let codiModul = "";
   let nomModul = "";
   let horesCentre = 0;
+  let horesEmpresa = 0;
   let horesTotals = 0;
   let professorat = "";
 
@@ -296,10 +297,28 @@ function parseSyllabusDocument(text: string): Partial<ModulePresentation> {
       const match = line.match(/Departament:\s*(.+)/i);
       if (match) departament = match[1].trim();
     }
-    if (/Cicle\s*Formatiu:/i.test(line)) {
-      const match = line.match(/Cicle\s*Formatiu:\s*(.+)/i);
-      if (match) cicleFormatiu = match[1].trim();
+    
+    // DETECCIÓ FLEXIBLE DEL CICLE FORMATIU
+    if (/Cicle\s*Formatiu/i.test(line)) {
+      const match = line.match(/Cicle\s*Formatiu:\s*(.+)/i) || line.match(/Cicle\s*Formatiu\s*(.+)/i);
+      if (match && match[1] && match[1].trim().length > 2) {
+        cicleFormatiu = match[1].trim();
+      } else {
+        // Look at the next non-empty line
+        let nextLineIndex = i + 1;
+        while (nextLineIndex < Math.min(lines.length, i + 5)) {
+          const nextLineRaw = lines[nextLineIndex];
+          const nextLine = cleanHtml(nextLineRaw);
+          if (nextLine) {
+            cicleFormatiu = nextLine;
+            break;
+          }
+          nextLineIndex++;
+        }
+      }
     }
+
+    // DETECCIÓ FLEXIBLE DE MÒDUL I CODI
     if (/Mòdul\s*Professional:/i.test(line)) {
       const match = line.match(/Mòdul\s*Professional:\s*(.+)/i);
       if (match) {
@@ -318,7 +337,49 @@ function parseSyllabusDocument(text: string): Partial<ModulePresentation> {
           }
         }
       }
+    } else if (/Número\s*i\s*nom\s*del\s*mòdul\s*professional/i.test(line)) {
+      let nextLineIndex = i + 1;
+      while (nextLineIndex < Math.min(lines.length, i + 5)) {
+        const nextLineRaw = lines[nextLineIndex];
+        const nextLine = cleanHtml(nextLineRaw);
+        if (nextLine) {
+          const codeMatch = nextLine.match(/\b(\d{4})\b/);
+          if (codeMatch) {
+            codiModul = codeMatch[1];
+            let cleanName = nextLine.replace(/\b\d{4}\b/g, "");
+            cleanName = cleanName.replace(/^[-\s,–:•·|]+/, "").replace(/[-\s,–:•·|]+$/, "").trim();
+            nomModul = cleanName;
+          } else {
+            nomModul = nextLine;
+          }
+          break;
+        }
+        nextLineIndex++;
+      }
     }
+
+    // DETECCIÓ FLEXIBLE D'HORES (DURADA)
+    if (/\bDurada\b/i.test(line)) {
+      let searchLimit = Math.min(lines.length, i + 8);
+      for (let j = i + 1; j < searchLimit; j++) {
+        const nextLine = cleanHtml(lines[j]);
+        if (!nextLine) continue;
+        
+        if (/Hores\s*(al|a\s+la|a\s+l')?\s*centre/i.test(nextLine)) {
+          const numMatch = nextLine.match(/(\d+)/);
+          if (numMatch) {
+            horesCentre = parseInt(numMatch[1], 10);
+          }
+        }
+        if (/Hores\s*(a\s+l’|a\s+l'|a\s+la|a|a\s+l’)?\s*empresa/i.test(nextLine)) {
+          const numMatch = nextLine.match(/(\d+)/);
+          if (numMatch) {
+            horesEmpresa = parseInt(numMatch[1], 10);
+          }
+        }
+      }
+    }
+
     if (/Hores\s*centre\s*educatiu:/i.test(line)) {
       const match = line.match(/Hores\s*centre\s*educatiu:\s*(\d+)/i);
       if (match) horesCentre = parseInt(match[1], 10);
@@ -522,8 +583,8 @@ function parseSyllabusDocument(text: string): Partial<ModulePresentation> {
     codiModul: codiModul || "0625",
     nomModul: nomModul || "Mòdul Professional Importat",
     horesCentre: horesCentre || 99,
-    horesEmpresa: Math.max(0, horesTotals - horesCentre) || 66,
-    totalHores: horesTotals || (horesCentre + (Math.max(0, horesTotals - horesCentre) || 66)),
+    horesEmpresa: horesEmpresa || Math.max(0, horesTotals - horesCentre) || 66,
+    totalHores: horesTotals || (horesCentre + (horesEmpresa || Math.max(0, horesTotals - horesCentre) || 66)),
     professorat: professorat || "Docent del mòdul",
     objectius: objectius.length > 0 ? objectius : [],
     ras: ras.length > 0 ? ras : [],
@@ -833,41 +894,44 @@ export default function App() {
         }
 
         const parsed = parseSyllabusDocument(text);
-        
-        if (isOverwrite && activeModule) {
-          // Merge / overwrite fields on the active module
-          const updatedMod = {
-            ...activeModule,
-            ...parsed,
-            // Ensure lists are properly assigned
-            objectius: parsed.objectius && parsed.objectius.length > 0 ? parsed.objectius : activeModule.objectius,
-            ras: parsed.ras && parsed.ras.length > 0 ? parsed.ras : activeModule.ras,
-            competencies: parsed.competencies && parsed.competencies.length > 0 ? parsed.competencies : activeModule.competencies,
-            avaluacioPrimera: parsed.avaluacioPrimera || activeModule.avaluacioPrimera,
-            avaluacioSegona: parsed.avaluacioSegona || activeModule.avaluacioSegona,
-            metodologia: parsed.metodologia && parsed.metodologia.length > 0 ? parsed.metodologia : activeModule.metodologia,
-            activitats: parsed.activitats && parsed.activitats.length > 0 ? parsed.activitats : activeModule.activitats,
-            sortides: parsed.sortides && parsed.sortides.length > 0 ? parsed.sortides : activeModule.sortides,
-            espaisrecursos: parsed.espaisrecursos && parsed.espaisrecursos.length > 0 ? parsed.espaisrecursos : activeModule.espaisrecursos,
-            bibliografia: parsed.bibliografia && parsed.bibliografia.length > 0 ? parsed.bibliografia : activeModule.bibliografia
-          };
-          
-          handleUpdateModule(updatedMod);
-          showFeedback("success", `S'ha actualitzat el mòdul ${activeModule.codiModul} amb les dades de l'arxiu .docx!`);
-        } else {
-          // Create a new module
-          const newMod = ensureModuleFields({
-            id: "module-docx-" + Date.now(),
-            ...parsed,
-            cursAcademic: "2026-2027",
-            grup: "A"
-          });
-          
-          const updatedList = [newMod, ...modules];
-          saveModules(updatedList);
-          setSelectedId(newMod.id);
-          showFeedback("success", `S'ha importat el nou mòdul ${newMod.codiModul || ""} correctament des del fitxer .docx!`);
-        }
+        setParsedData(parsed);
+        setSelectedMetadata(true);
+        setImportMode(isOverwrite ? "overwrite" : "create");
+
+        const rasSel: Record<string, boolean> = {};
+        (parsed.ras || []).forEach((r: any) => { rasSel[r.id] = true; });
+        setSelectedRAs(rasSel);
+
+        const compSel: Record<string, boolean> = {};
+        (parsed.competencies || []).forEach((c: any) => { compSel[c.id] = true; });
+        setSelectedCompetencies(compSel);
+
+        const objSel: Record<string, boolean> = {};
+        (parsed.objectius || []).forEach((o: any) => { objSel[o.id] = true; });
+        setSelectedObjectius(objSel);
+
+        const actSel: Record<string, boolean> = {};
+        (parsed.activitats || []).forEach((a: any) => { actSel[a.id] = true; });
+        setSelectedActivities(actSel);
+
+        setSelectedMetodologia(true);
+        setSelectedAvaluacio(true);
+
+        const recSel: Record<string, boolean> = {};
+        (parsed.espaisrecursos || []).forEach((r: any) => { recSel[r.id] = true; });
+        setSelectedRecursos(recSel);
+
+        const bibSel: Record<string, boolean> = {};
+        (parsed.bibliografia || []).forEach((b: any) => { bibSel[b.id] = true; });
+        setSelectedBibliografia(bibSel);
+
+        const sortSel: Record<string, boolean> = {};
+        (parsed.sortides || []).forEach((s: any) => { sortSel[s.id] = true; });
+        setSelectedSortides(sortSel);
+
+        setImportStep(2);
+        setIsImportModalOpen(true);
+        showFeedback("success", "S'ha analitzat el fitxer .docx localment! Revisa i confirma les dades a la targeta de verificació.");
       } catch (err) {
         console.error("Error parsing .docx:", err);
         showFeedback("error", "Error llegint o processant el fitxer .docx.");
@@ -1305,7 +1369,7 @@ export default function App() {
       )}
 
       {/* Import syllabus from .doc Modal */}
-      {false && (
+      {isImportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in no-print">
           <div className={`bg-white rounded-2xl border border-slate-150 shadow-2xl w-full flex flex-col max-h-[90vh] overflow-hidden transition-all duration-300 ${importStep === 2 ? 'max-w-4xl' : 'max-w-2xl'} p-6`}>
             
