@@ -85,11 +85,28 @@ const COURSE_WEEKS: WeekInfo[] = [
 const getWeekNumFromDate = (dateStr: string): number => {
   if (!dateStr) return 1;
   const cleanDate = dateStr.split('T')[0];
+  
+  // First, check if it falls inside a non-holiday week
   for (const w of COURSE_WEEKS) {
-    if (cleanDate >= w.start && cleanDate <= w.end) {
+    if (!w.isHoliday && cleanDate >= w.start && cleanDate <= w.end) {
       return w.num;
     }
   }
+
+  // If it falls inside a holiday week, map it to the active week number immediately prior to this holiday week
+  for (let i = 0; i < COURSE_WEEKS.length; i++) {
+    const w = COURSE_WEEKS[i];
+    if (w.isHoliday && cleanDate >= w.start && cleanDate <= w.end) {
+      for (let j = i - 1; j >= 0; j--) {
+        if (!COURSE_WEEKS[j].isHoliday) {
+          return COURSE_WEEKS[j].num;
+        }
+      }
+      return 1;
+    }
+  }
+
+  // Fallback to closest non-holiday week
   let closestWeek = COURSE_WEEKS.find(w => !w.isHoliday) || COURSE_WEEKS[0];
   let minDiff = Infinity;
   const targetTime = new Date(cleanDate).getTime();
