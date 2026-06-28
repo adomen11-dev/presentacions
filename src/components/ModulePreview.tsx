@@ -36,6 +36,92 @@ const formatDateForDisplay = (dateStr: string): string => {
   return dateStr;
 };
 
+interface WeekInfo {
+  num: number;
+  label: string;
+  start: string;
+  end: string;
+  isHoliday: boolean;
+}
+
+const COURSE_WEEKS: WeekInfo[] = [
+  { num: 1, label: "Setmana 1", start: "2026-09-10", end: "2026-09-11", isHoliday: false },
+  { num: 2, label: "Setmana 2", start: "2026-09-14", end: "2026-09-18", isHoliday: false },
+  { num: 3, label: "Setmana 3", start: "2026-09-21", end: "2026-09-25", isHoliday: false },
+  { num: 4, label: "Setmana 4", start: "2026-09-28", end: "2026-10-02", isHoliday: false },
+  { num: 5, label: "Setmana 5", start: "2026-10-05", end: "2026-10-09", isHoliday: false },
+  { num: 6, label: "Setmana 6", start: "2026-10-12", end: "2026-10-16", isHoliday: false },
+  { num: 7, label: "Setmana 7", start: "2026-10-19", end: "2026-10-23", isHoliday: false },
+  { num: 8, label: "Setmana 8", start: "2026-10-26", end: "2026-10-30", isHoliday: false },
+  { num: 9, label: "Setmana 9", start: "2026-11-02", end: "2026-11-06", isHoliday: false },
+  { num: 10, label: "Setmana 10", start: "2026-11-09", end: "2026-11-13", isHoliday: false },
+  { num: 11, label: "Setmana 11", start: "2026-11-16", end: "2026-11-20", isHoliday: false },
+  { num: 12, label: "Setmana 12", start: "2026-11-23", end: "2026-11-27", isHoliday: false },
+  { num: 13, label: "Setmana 13", start: "2026-11-30", end: "2026-12-04", isHoliday: false },
+  { num: 14, label: "Setmana 14", start: "2026-12-07", end: "2026-12-11", isHoliday: false },
+  { num: 15, label: "Setmana 15", start: "2026-12-14", end: "2026-12-18", isHoliday: false },
+  { num: 16, label: "Setmana 16", start: "2026-12-21", end: "2026-12-25", isHoliday: false },
+  { num: 0, label: "Vacances Nadal", start: "2026-12-28", end: "2027-01-08", isHoliday: true },
+  { num: 17, label: "Setmana 17", start: "2027-01-11", end: "2027-01-15", isHoliday: false },
+  { num: 18, label: "Setmana 18", start: "2027-01-18", end: "2027-01-22", isHoliday: false },
+  { num: 19, label: "Setmana 19", start: "2027-01-25", end: "2027-01-29", isHoliday: false },
+  { num: 20, label: "Setmana 20", start: "2027-02-01", end: "2027-02-05", isHoliday: false },
+  { num: 21, label: "Setmana 21", start: "2027-02-08", end: "2027-02-12", isHoliday: false },
+  { num: 22, label: "Setmana 22", start: "2027-02-15", end: "2027-02-19", isHoliday: false },
+  { num: 23, label: "Setmana 23", start: "2027-02-22", end: "2027-02-26", isHoliday: false },
+  { num: 24, label: "Setmana 24", start: "2027-03-01", end: "2027-03-05", isHoliday: false },
+  { num: 25, label: "Setmana 25", start: "2027-03-08", end: "2027-03-12", isHoliday: false },
+  { num: 26, label: "Setmana 26", start: "2027-03-15", end: "2027-03-19", isHoliday: false },
+  { num: 0, label: "Vacances Setmana Santa", start: "2027-03-22", end: "2027-03-26", isHoliday: true },
+  { num: 27, label: "Setmana 27", start: "2027-03-29", end: "2027-04-02", isHoliday: false },
+  { num: 28, label: "Setmana 28", start: "2027-04-05", end: "2027-04-09", isHoliday: false },
+  { num: 29, label: "Setmana 29", start: "2027-04-12", end: "2027-04-16", isHoliday: false },
+  { num: 30, label: "Setmana 30", start: "2027-04-19", end: "2027-04-23", isHoliday: false },
+  { num: 31, label: "Setmana 31", start: "2027-04-26", end: "2027-04-30", isHoliday: false },
+  { num: 32, label: "Setmana 32", start: "2027-05-03", end: "2027-05-07", isHoliday: false },
+  { num: 33, label: "Setmana 33", start: "2027-05-10", end: "2027-05-14", isHoliday: false }
+];
+
+const getWeekNumFromDate = (dateStr: string): number => {
+  if (!dateStr) return 1;
+  const cleanDate = dateStr.split('T')[0];
+  for (const w of COURSE_WEEKS) {
+    if (cleanDate >= w.start && cleanDate <= w.end) {
+      return w.num;
+    }
+  }
+  let closestWeek = COURSE_WEEKS.find(w => !w.isHoliday) || COURSE_WEEKS[0];
+  let minDiff = Infinity;
+  const targetTime = new Date(cleanDate).getTime();
+  for (const w of COURSE_WEEKS) {
+    if (w.isHoliday) continue;
+    const startDiff = Math.abs(new Date(w.start).getTime() - targetTime);
+    if (startDiff < minDiff) {
+      minDiff = startDiff;
+      closestWeek = w;
+    }
+  }
+  return closestWeek.num;
+};
+
+const calculateCoursePercentage = (dataInici: string, dataFinal: string): string => {
+  let startW = getWeekNumFromDate(dataInici || "2026-09-10");
+  let endW = getWeekNumFromDate(dataFinal || "2027-05-14");
+  
+  if (startW === 0) {
+    const cleanDate = (dataInici || "2026-09-10").split('T')[0];
+    startW = cleanDate <= "2027-01-03" ? 16 : 17;
+  }
+  if (endW === 0) {
+    const cleanDate = (dataFinal || "2027-05-14").split('T')[0];
+    endW = cleanDate <= "2027-01-03" ? 16 : 17;
+  }
+  
+  const span = Math.max(1, endW - startW + 1);
+  const percentage = (span / 33) * 100;
+  return percentage.toFixed(0) + "%";
+};
+
 type TabKey = 
   | "dades" 
   | "objectius" 
@@ -272,11 +358,12 @@ export default function ModulePreview({
                   <table className="w-full text-left text-xs sm:text-sm border-collapse">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[11px]">
-                        <th className="py-3 px-4 w-24 text-center border-r border-slate-200">Id RA</th>
+                        <th className="py-3 px-4 w-20 text-center border-r border-slate-200">Id RA</th>
                         <th className="py-3 px-4">Text del Resultat d'Aprenentatge</th>
-                        <th className="py-3 px-4 w-28 text-center border-l border-slate-200">Ponderació</th>
-                        <th className="py-3 px-4 w-24 text-center border-l border-slate-100">Data Inici</th>
-                        <th className="py-3 px-4 w-24 text-center border-l border-slate-100">Data Final</th>
+                        <th className="py-3 px-4 w-24 text-center border-l border-slate-200">Ponderació</th>
+                        <th className="py-3 px-4 w-28 text-center border-l border-slate-100">Data Inici</th>
+                        <th className="py-3 px-4 w-28 text-center border-l border-slate-100">Data Final</th>
+                        <th className="py-3 px-4 w-24 text-center border-l border-slate-100">% Curs</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
@@ -292,10 +379,21 @@ export default function ModulePreview({
                             {ra.ponderacio}%
                           </td>
                           <td className="py-3.5 px-4 text-center text-slate-600 font-mono border-l border-slate-100">
-                            {formatDateForDisplay(ra.dataInici)}
+                            <span className="block">{formatDateForDisplay(ra.dataInici)}</span>
+                            <span className="inline-block mt-0.5 text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-sans font-bold">
+                              Setmana {getWeekNumFromDate(ra.dataInici) || 1}
+                            </span>
                           </td>
                           <td className="py-3.5 px-4 text-center text-slate-600 font-mono border-l border-slate-100">
-                            {formatDateForDisplay(ra.dataFinal)}
+                            <span className="block">{formatDateForDisplay(ra.dataFinal)}</span>
+                            <span className="inline-block mt-0.5 text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-sans font-bold">
+                              Setmana {getWeekNumFromDate(ra.dataFinal) || 33}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-center border-l border-slate-100 font-mono">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100">
+                              {calculateCoursePercentage(ra.dataInici, ra.dataFinal)}
+                            </span>
                           </td>
                         </tr>
                       ))}
