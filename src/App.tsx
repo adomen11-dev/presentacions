@@ -457,7 +457,7 @@ function parseSyllabusDocument(text: string): Partial<ModulePresentation> {
     }
 
     if (currentSection === "objectius" || currentSection === "competencies") {
-      const letterMatch = line.match(/^([a-z])\)\s*(.+)/i) || line.match(/^([a-z])\.\s*(.+)/i);
+      const letterMatch = line.match(/^([a-z])[\):\.-]\s*(.+)/i);
       if (letterMatch) {
         const codiVal = letterMatch[1].toLowerCase();
         const textVal = letterMatch[2].trim();

@@ -592,8 +592,8 @@ export default function ModuleForm({
     for (const rawLine of lines) {
       const line = rawLine.trim();
       if (!line) continue;
-      // Patterns like a) Text content or a. Text content
-      const match = line.match(/^([a-z])[\)\.]\s*(.+)/i);
+      // Patterns like a) Text content, a. Text content, a: Text content, or a- Text content
+      const match = line.match(/^([a-z])[\):\.-]\s*(.+)/i);
       if (match) {
         const codi = match[1].toLowerCase();
         const text = match[2].trim();
