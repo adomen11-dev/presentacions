@@ -31,7 +31,7 @@ export function exportToExcel(module: ModulePresentation) {
 
   // 2. Objectius sheet
   const objRows = [
-    ["Id Objectiu", "Text de l'objectiu"],
+    ["Id Objectiu", "Text"],
     ...(module.objectius || []).map(o => [
       o.codi || "",
       o.text || ""
@@ -56,7 +56,7 @@ export function exportToExcel(module: ModulePresentation) {
 
   // 4. Competències sheet
   const compRows = [
-    ["Id. Competència", "Text de la competència"],
+    ["Id. Competència", "Text"],
     ...(module.competencies || []).map(c => [
       c.codi || "",
       c.text || ""
