@@ -31,6 +31,35 @@ import {
   Square
 } from "lucide-react";
 
+const ensureIsoDate = (dateStr: string, defaultDate: string): string => {
+  if (!dateStr) return defaultDate;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    if (dateStr < "2026-09-10") return "2026-09-10";
+    if (dateStr > "2027-05-14") return "2027-05-14";
+    return dateStr;
+  }
+  // Try to parse DD/MM or DD-MM format
+  const match = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})$/) || dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (match) {
+    const day = match[1].padStart(2, '0');
+    const month = match[2].padStart(2, '0');
+    let year = "2026";
+    if (match[3]) {
+      year = match[3].length === 2 ? "20" + match[3] : match[3];
+    } else {
+      const mNum = parseInt(month, 10);
+      if (mNum >= 1 && mNum <= 5) {
+        year = "2027";
+      }
+    }
+    const candidate = `${year}-${month}-${day}`;
+    if (candidate < "2026-09-10") return "2026-09-10";
+    if (candidate > "2027-05-14") return "2027-05-14";
+    return candidate;
+  }
+  return defaultDate;
+};
+
 // Helper to guarantee that all 10 sheets' fields exist on a module
 const ensureModuleFields = (m: any): ModulePresentation => {
   return {
@@ -56,8 +85,8 @@ const ensureModuleFields = (m: any): ModulePresentation => {
       codi: r.codi || "",
       text: r.text || r.descripcio || "",
       ponderacio: Number(r.ponderacio) || 0,
-      dataInici: r.dataInici || "",
-      dataFinal: r.dataFinal || ""
+      dataInici: ensureIsoDate(r.dataInici, "2026-09-10"),
+      dataFinal: ensureIsoDate(r.dataFinal, "2027-05-14")
     })) : [],
 
     competencies: Array.isArray(m.competencies) ? m.competencies.map((c: any) => ({

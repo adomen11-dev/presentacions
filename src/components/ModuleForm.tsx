@@ -50,6 +50,8 @@ interface ModuleFormProps {
 const ensureIsoDate = (dateStr: string, defaultDate: string): string => {
   if (!dateStr) return defaultDate;
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    if (dateStr < "2026-09-10") return "2026-09-10";
+    if (dateStr > "2027-05-14") return "2027-05-14";
     return dateStr;
   }
   // Try to parse DD/MM or DD-MM format
@@ -259,7 +261,7 @@ export default function ModuleForm({
 
     const rasList = official?.ras || [
       { id: `ra-${Date.now()}-1`, codi: "1", text: `Desenvolupa la comprensió inicial del mòdul professional i els seus components.`, ponderacio: 50, dataInici: "15/09", dataFinal: "31/12" },
-      { id: `ra-${Date.now()}-2`, codi: "2", text: `Executa supòsits pràctics i resol incidències segons el protocol establert.`, ponderacio: 50, dataInici: "08/01", dataFinal: "31/05" }
+      { id: `ra-${Date.now()}-2`, codi: "2", text: `Executa supòsits pràctics i resol incidències segons el protocol establert.`, ponderacio: 50, dataInici: "08/01", dataFinal: "14/05" }
     ];
     setRas(rasList);
 
